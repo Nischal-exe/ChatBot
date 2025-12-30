@@ -71,30 +71,42 @@ if "history" not in st.session_state:
     st.session_state.history = []
 
 # --- 3. SIDEBAR: PDF SYNC ---
+# --- 3. SECURE SIDEBAR ---
 with st.sidebar:
-    st.header("📚 Synapse Memory")
-    uploaded_file = st.file_uploader("Upload a PDF to Cloud DB", type="pdf")
+    st.header("🔐 Admin Access")
     
-    if uploaded_file and st.button("Sync with Neon DB"):
-        with st.spinner("Chunking & Vectorizing..."):
-            with open("temp_cloud.pdf", "wb") as f:
-                f.write(uploaded_file.getbuffer())
-            
-            # Use PyPDF to read and split
-            loader = PyPDFLoader("temp_cloud.pdf")
-            text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=150)
-            docs = text_splitter.split_documents(loader.load())
-            
-            # Upload to Cloud Database
-            vector_store.add_documents(docs)
-            os.remove("temp_cloud.pdf")
-            st.success(f"Added {len(docs)} chunks to Cloud Memory!")
+    # Password field to unlock admin features
+    admin_password = st.text_input("Enter Admin Password", type="password")
+    
+    if admin_password == st.secrets["ADMIN_PASSWORD"]:
+        st.success("Admin Mode Active")
+        st.divider()
+        
+        st.header("📚 Knowledge Base Management")
+        uploaded_file = st.file_uploader("Upload a PDF to Cloud DB", type="pdf")
+        
+        if uploaded_file and st.button("Sync with Neon DB"):
+            with st.spinner("Chunking & Vectorizing..."):
+                with open("temp_cloud.pdf", "wb") as f:
+                    f.write(uploaded_file.getbuffer())
+                
+                loader = PyPDFLoader("temp_cloud.pdf")
+                text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=150)
+                docs = text_splitter.split_documents(loader.load())
+                
+                vector_store.add_documents(docs)
+                os.remove("temp_cloud.pdf")
+                st.success(f"Added {len(docs)} chunks to Cloud Memory!")
 
-    if st.button("🗑️ Wipe All Memory"):
-        vector_store.delete_collection()
-        st.session_state.history = []
-        st.rerun()
-
+        if st.button("🗑️ Wipe All Memory"):
+            vector_store.delete_collection()
+            st.session_state.history = []
+            st.rerun()
+    else:
+        if admin_password != "":
+            st.error("Incorrect Password")
+        st.info("Admin tools are locked. Only the owner can index new documents or reset memory.")
+        
 # --- 4. ADVANCED RAG BRAIN ---
 
 # Multi-Query: Expands 1 question into 3 to find more info
