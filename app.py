@@ -117,7 +117,7 @@ qa_prompt = ChatPromptTemplate.from_messages([
     Your ONLY knowledge comes from the provided context.
 
     **CRITICAL RULES:**
-    1. If the answer is NOT present in the context below, you must say: "I'm sorry, but that information is not available in the uploaded documents."
+    1. If the answer is NOT present in the context below, you must say: "I'm sorry, I am unable to answer this question based on the information I have."
     2. DO NOT use your internal general knowledge to answer.
     3. DO NOT answer questions about the weather, general news, or topics outside the document.
     4. If the context is empty or irrelevant, refuse to answer.
