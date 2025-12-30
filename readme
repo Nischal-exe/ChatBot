@@ -1,0 +1,32 @@
+# ⚡ Synapse: Advanced Multi-Query AI Assistant
+
+Synapse is a high-performance **Retrieval-Augmented Generation (RAG)** application built to extract precise, well-organized information from PDF documents. By utilizing **Multi-Query Expansion**, Synapse overcomes the limitations of standard keyword search, ensuring it finds the most relevant information even if the user's question is vague.
+
+
+
+## 🌟 Key Features
+
+* **Multi-Query Expansion:** Uses Groq's Llama 3.3 to rewrite user queries into multiple variations, increasing retrieval accuracy (Recall).
+* **Persistent Cloud Memory:** Integrated with **Neon DB (PGVector)** to store document embeddings permanently in the cloud.
+* **Explainable AI:** Provides direct **Source Citations** including page numbers and exact text snippets for every answer.
+* **Context-Aware Chat:** Maintains a session-based history to handle follow-up questions (e.g., "What about the second one?").
+* **Sub-Second Latency:** Powered by **Groq LPU** inference for near-instant responses.
+
+## 🛠️ Tech Stack
+
+* **Frontend:** [Streamlit](https://streamlit.io/)
+* **Orchestration:** [LangChain](https://www.langchain.com/)
+* **Brain (LLM):** Groq (Llama 3.3-70B)
+* **Vector Database:** Neon DB (PostgreSQL + PGVector)
+* **Embeddings:** Hugging Face (`all-MiniLM-L6-v2`)
+
+## 📂 Project Structure
+
+```text
+Synapse-Cloud/
+├── .streamlit/             # Streamlit configuration
+│   └── secrets.toml        # Local secrets (ignored by Git)
+├── app.py                  # Main application logic
+├── requirements.txt        # Python dependencies
+├── packages.txt            # Linux system dependencies (libpq-dev)
+└── .gitignore              # Files to exclude from GitHub

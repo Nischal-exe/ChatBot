@@ -1,0 +1,19 @@
+Langchain Version: 1.2.0
+Langchain Path: N:\ChatBot\venv\Lib\site-packages\langchain\__init__.py
+Langchain Community Version: 0.4.1
+Langchain Community Path: N:\ChatBot\venv\Lib\site-packages\langchain_community\__init__.py
+Attempting main import from langchain.chains...
+Failed importing from langchain.chains
+Traceback (most recent call last):
+  File "N:\ChatBot\debug_langchain.py", line 15, in <module>
+    from langchain.chains import create_history_aware_retriever
+ModuleNotFoundError: No module named 'langchain.chains'
+
+--------------------
+Attempting import from langchain_community.chains...
+Failed importing from langchain_community.chains
+Traceback (most recent call last):
+  File "N:\ChatBot\debug_langchain.py", line 25, in <module>
+    from langchain_community.chains import create_history_aware_retriever
+ImportError: cannot import name 'create_history_aware_retriever' from 'langchain_community.chains' (N:\ChatBot\venv\Lib\site-packages\langchain_community\chains\__init__.py)
+
