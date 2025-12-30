@@ -41,9 +41,9 @@ def init_synapse():
     
     # Load Groq Llama 3.3
     llm = ChatGroq(
-        model="llama-3.3-70b-versatile", 
+        model="llama-3.1-8b-instant", 
         groq_api_key=GROQ_API_KEY,
-        temperature=0.2
+        temperature=0.0
     )
     
     # Initialize PGVector Store
@@ -111,7 +111,7 @@ with st.sidebar:
 
 # Multi-Query: Expands 1 question into 3 to find more info
 mq_retriever = MultiQueryRetriever.from_llm(
-    retriever=vector_store.as_retriever(search_kwargs={"k": 3}), 
+    retriever=vector_store.as_retriever(search_kwargs={"k": 2}), 
     llm=llm
 )
 
