@@ -1,6 +1,9 @@
+streamlit
+langchain
+langchain-community
 langchain-groq
 langchain-huggingface
 langchain-postgres
 sentence-transformers
-streamlit
 psycopg[binary]
+torch --index-url https://download.pytorch.org/whl/cpu
