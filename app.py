@@ -3,7 +3,7 @@ import os
 import time
 import logging
 
-# AI & LangChain Core
+# AI & LangChain Core (2026 Modular Imports)
 from langchain_groq import ChatGroq
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_postgres import PGVector
@@ -18,44 +18,43 @@ from langchain.chains import create_history_aware_retriever, create_retrieval_ch
 from langchain.chains.combine_documents import create_stuff_documents_chain
 
 # --- 1. CLOUD CONFIGURATION ---
-# These must be set in your Streamlit Cloud Dashboard (Settings > Secrets)
 GROQ_API_KEY = st.secrets["GROQ_API_KEY"]
 DB_URL = st.secrets["DATABASE_URL"]
+ADMIN_PASS = st.secrets["ADMIN_PASSWORD"]
 
-# Setup Page
+# Page Setup
 st.set_page_config(page_title="Synapse AI", page_icon="⚡", layout="wide")
-st.title("⚡ Synapse AI: Cloud Assistant")
-
-# Log multi-query expansion in the app console
-logging.basicConfig()
-logging.getLogger("langchain.retrievers.multi_query").setLevel(logging.INFO)
+st.title("⚡ Synapse AI: Enterprise RAG")
 
 # --- 2. SYSTEM INITIALIZATION ---
 @st.cache_resource
 def init_synapse():
-    # Load Embeddings (CPU only for Cloud efficiency)
+    # Load Embeddings (CPU Optimized)
     embeddings = HuggingFaceEmbeddings(
         model_name="sentence-transformers/all-MiniLM-L6-v2",
         model_kwargs={'device': 'cpu'}
     )
     
-    # Load Groq Llama 3.3
+    # Load LLM (llama-3.1-8b for TPD efficiency and speed)
     llm = ChatGroq(
         model="llama-3.1-8b-instant", 
         groq_api_key=GROQ_API_KEY,
-        temperature=0.0
+        temperature=0.0 # Deterministic for factual accuracy
     )
     
-    # Initialize PGVector Store
+    # Initialize Vector Store with SSL & Connection Pooling
     vector_store = PGVector(
         connection=DB_URL, 
         embeddings=embeddings, 
-        collection_name="synapse_cloud_v1",
-        use_jsonb=True
+        collection_name="synapse_production_v1",
+        use_jsonb=True,
+        engine_args={
+            "pool_pre_ping": True,
+            "pool_recycle": 300,
+        }
     )
     
-    # --- CRITICAL DATABASE FIX ---
-    # This creates the necessary SQL tables if your Neon DB is empty
+    # Provision Database Tables
     try:
         vector_store.create_tables_if_not_exists()
     except Exception as e:
@@ -63,102 +62,110 @@ def init_synapse():
         
     return llm, vector_store
 
-# Start the Brain
+# Launch Brain
 llm, vector_store = init_synapse()
 
-# Setup Session History
+# Session State for History
 if "history" not in st.session_state:
     st.session_state.history = []
 
-# --- 3. SIDEBAR: PDF SYNC ---
 # --- 3. SECURE SIDEBAR ---
 with st.sidebar:
-    st.header("🔐 Admin Access")
+    st.header("🔐 Admin Panel")
+    password = st.text_input("Admin Password", type="password")
     
-    # Password field to unlock admin features
-    admin_password = st.text_input("Enter Admin Password", type="password")
-    
-    if admin_password == st.secrets["ADMIN_PASSWORD"]:
-        st.success("Admin Mode Active")
+    if password == ADMIN_PASS:
+        st.success("Authorized")
         st.divider()
+        st.header("📚 Knowledge Manager")
         
-        st.header("📚 Knowledge Base Management")
-        uploaded_file = st.file_uploader("Upload a PDF to Cloud DB", type="pdf")
+        uploaded_file = st.file_uploader("Upload PDF", type="pdf")
         
-        if uploaded_file and st.button("Sync with Neon DB"):
-            with st.spinner("Chunking & Vectorizing..."):
-                with open("temp_cloud.pdf", "wb") as f:
+        if uploaded_file and st.button("Sync to Cloud DB"):
+            with st.spinner("Indexing for High-Precision Retrieval..."):
+                temp_file = f"temp_{int(time.time())}.pdf"
+                with open(temp_file, "wb") as f:
                     f.write(uploaded_file.getbuffer())
                 
-                loader = PyPDFLoader("temp_cloud.pdf")
-                text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=150)
-                docs = text_splitter.split_documents(loader.load())
-                
-                vector_store.add_documents(docs)
-                os.remove("temp_cloud.pdf")
-                st.success(f"Added {len(docs)} chunks to Cloud Memory!")
+                try:
+                    # Optimized Load & Split
+                    loader = PyPDFLoader(temp_file)
+                    raw_pages = loader.load()
+                    
+                    text_splitter = RecursiveCharacterTextSplitter(
+                        chunk_size=700,
+                        chunk_overlap=150,
+                        separators=["\n\n", "\n", ".", " ", ""]
+                    )
+                    
+                    # Fix for subscriptable error: Force list type
+                    docs = text_splitter.split_documents(list(raw_pages))
+                    
+                    # Add Metadata
+                    for doc in docs:
+                        doc.metadata["source"] = uploaded_file.name
+                    
+                    vector_store.add_documents(docs)
+                    st.success(f"Successfully Synapsed {len(docs)} chunks!")
+                except Exception as e:
+                    st.error(f"Sync Failed: {e}")
+                finally:
+                    if os.path.exists(temp_file):
+                        os.remove(temp_file)
 
-        if st.button("🗑️ Wipe All Memory"):
+        if st.button("🗑️ Reset All Knowledge"):
             vector_store.delete_collection()
             st.session_state.history = []
             st.rerun()
     else:
-        if admin_password != "":
-            st.error("Incorrect Password")
-        st.info("Admin tools are locked. Only the owner can index new documents or reset memory.")
-        
-# --- 4. ADVANCED RAG BRAIN ---
+        if password: st.error("Access Denied")
+        st.info("Knowledge indexing is restricted to admins.")
 
-# Multi-Query: Expands 1 question into 3 to find more info
+# --- 4. THE RAG BRAIN (Multi-Query Expansion) ---
+
+# 1. Multi-Query Retriever
 mq_retriever = MultiQueryRetriever.from_llm(
-    retriever=vector_store.as_retriever(search_kwargs={"k": 2}), 
+    retriever=vector_store.as_retriever(search_kwargs={"k": 3}), 
     llm=llm
 )
 
-# Context Rephrasing: Handles chat history (pronouns like "it", "he")
+# 2. Context Re-phraser (Standalone Question Generator)
 context_prompt = ChatPromptTemplate.from_messages([
-    ("system", "Given the history, rephrase the question to be a standalone query."),
+    ("system", "Given the history, rephrase the user's query into a standalone research question."),
     MessagesPlaceholder("chat_history"),
     ("human", "{input}"),
 ])
 history_retriever = create_history_aware_retriever(llm, mq_retriever, context_prompt)
 
-# Organized QA Prompt
+# 3. Final Answer Prompt (Strict Grounding)
 qa_prompt = ChatPromptTemplate.from_messages([
-    ("system", """You are Synapse, a strict AI research assistant. 
-    Your ONLY knowledge comes from the provided context.
-
-    **CRITICAL RULES:**
-    1. If the answer is NOT present in the context below, you must say: "I'm sorry, I am unable to answer this question based on the information I have."
-    2. DO NOT use your internal general knowledge to answer.
-    3. DO NOT answer questions about the weather, general news, or topics outside the document.
-    4. If the context is empty or irrelevant, refuse to answer.
-
+    ("system", """You are Synapse. Your answers must be BASED ONLY on the provided context.
+    - If the info is missing, say: "I couldn't find that in the documents."
+    - Be professional and use bullet points for clarity.
+    
     Context: {context}"""),
     MessagesPlaceholder("chat_history"),
     ("human", "{input}"),
 ])
 
-# Create the final execution chain
 rag_chain = create_retrieval_chain(history_retriever, create_stuff_documents_chain(llm, qa_prompt))
 
-# --- 5. CHAT INTERFACE ---
+# --- 5. CHAT UI ---
 for msg in st.session_state.history:
     role = "user" if isinstance(msg, HumanMessage) else "assistant"
     with st.chat_message(role):
         st.markdown(msg.content)
 
-if user_input := st.chat_input("Ask Synapse anything..."):
+if user_input := st.chat_input("Query the knowledge base..."):
     st.chat_message("user").markdown(user_input)
     
-    with st.spinner("Retrieving from Cloud DB..."):
+    with st.spinner("Consulting Synapse Brain..."):
         try:
-            start_time = time.time()
+            start = time.time()
             response = rag_chain.invoke({
                 "input": user_input, 
                 "chat_history": st.session_state.history
             })
-            end_time = time.time()
             
             answer = response["answer"]
             sources = response.get("context", [])
@@ -166,19 +173,18 @@ if user_input := st.chat_input("Ask Synapse anything..."):
             with st.chat_message("assistant"):
                 st.markdown(answer)
                 
-                # Expandable Citation Box
                 if sources:
-                    with st.expander("🔍 View Synapse Sources"):
+                    with st.expander("🔍 Evidence & Sources"):
                         for i, doc in enumerate(sources):
-                            page = doc.metadata.get("page", "N/A")
-                            st.info(f"**Source {i+1} (Page {page}):**\n\n{doc.page_content[:300]}...")
-                
-                st.caption(f"⏱️ Response time: {round(end_time - start_time, 2)}s")
+                            src = doc.metadata.get("source", "Unknown")
+                            pg = doc.metadata.get("page", "?")
+                            st.caption(f"**Doc {i+1}:** {src} (Page {pg})")
+                            st.write(f"{doc.page_content[:250]}...")
             
-            # Save history
             st.session_state.history.extend([
                 HumanMessage(content=user_input), 
                 AIMessage(content=answer)
             ])
+            st.caption(f"⚡ Latency: {round(time.time() - start, 2)}s")
         except Exception as e:
-            st.error(f"Chain Error: {e}")
+            st.error(f"Chain Execution Error: {e}")
